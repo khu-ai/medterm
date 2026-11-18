@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>의학용어 검색기 🩺</title>
+<meta name="description" content="한글·영어로 찾는 의학용어 검색기 + 어근 분해기">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+<style>
+  :root {
+    --bg: #f4f7fb; --card: #fff; --text: #17233a; --sub: #66758c;
+    --accent: #1f6feb; --accent-soft: #e6efff; --border: #e2e8f0;
+    --mark: #fff1a8; --shadow: 0 6px 20px rgba(23, 35, 58, .07);
+  }
+  body.dark {
+    --bg: #0f1522; --card: #182133; --text: #e6ecf5; --sub: #93a1b8;
+    --accent: #5b9bff; --accent-soft: #1f2d48; --border: #26324a;
+    --mark: #6b5a00; --shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text); transition: background .3s, color .3s;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--sub); font-size: 14px; margin-top: 4px; }
+  .theme-btn { border: 1px solid var(--border); background: var(--card); color: var(--text);
+    width: 42px; height: 42px; border-radius: 50%; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+
+  .tabs { display: flex; gap: 6px; margin: 22px 0 14px; background: var(--card); padding: 5px;
+    border-radius: 14px; border: 1px solid var(--border); }
+  .tab { flex: 1; border: none; background: transparent; color: var(--sub); padding: 10px 6px;
+    border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .tab.on { background: var(--accent); color: #fff; }
+
+  .search { position: relative; }
+  .search input { width: 100%; padding: 16px 18px 16px 48px; font-size: 17px; border-radius: 16px;
+    border: 2px solid var(--border); background: var(--card); color: var(--text); outline: none; box-shadow: var(--shadow); }
+  .search input:focus { border-color: var(--accent); }
+  .search::before { content: "🔍"; position: absolute; left: 17px; top: 50%; transform: translateY(-50%); font-size: 18px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+  .chip { border: 1px solid var(--border); background: var(--card); color: var(--text);
+    padding: 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .count { color: var(--sub); font-size: 13px; margin: 6px 2px 10px; }
+  .list { display: grid; gap: 10px; }
+  .item { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .en { font-size: 18px; font-weight: 800; }
+  .ko { font-size: 16px; font-weight: 700; color: var(--accent); }
+  .cat { font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 3px 9px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+  .def { color: var(--sub); font-size: 14px; margin-top: 6px; line-height: 1.55; }
+  .parts-line { margin-top: 8px; font-size: 13px; }
+  .parts-line b { color: var(--text); }
+  mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .empty { text-align: center; color: var(--sub); padding: 40px 0; font-size: 15px; }
+  .more { display: block; margin: 14px auto 0; border: 1px solid var(--border); background: var(--card); color: var(--text);
+    padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+
+  .decomp-result { margin-top: 16px; }
+  .pieces { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+  .piece { background: var(--card); border: 2px solid var(--accent); border-radius: 12px; padding: 10px 14px; text-align: center; min-width: 90px; }
+  .piece .p-form { font-size: 17px; font-weight: 800; }
+  .piece .p-type { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .piece .p-mean { font-size: 14px; color: var(--accent); font-weight: 700; margin-top: 4px; }
+  .piece.unknown { border-style: dashed; border-color: var(--sub); }
+  .piece.vowel { border-color: var(--border); min-width: 44px; }
+  .hint { color: var(--sub); font-size: 13px; line-height: 1.6; margin-top: 10px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+  footer { text-align: center; color: var(--sub); font-size: 12px; margin-top: 36px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>의학용어 <span>검색기</span> 🩺</h1>
+      <p class="sub">한글이나 영어, 약어로 검색하고 어근으로 뜻을 풀어 보세요</p>
+    </div>
+    <button class="theme-btn" id="themeBtn" title="다크 모드 전환">🌙</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="terms">📖 용어 검색</button>
+    <button class="tab" data-tab="parts">🧩 어근·접두사·접미사</button>
+    <button class="tab" data-tab="decomp">🔬 단어 분해기</button>
+  </div>
+
+  <!-- 용어 검색 -->
+  <section id="tab-terms">
+    <div class="search"><input id="q" type="search" placeholder="예: 심근경색, hepatitis, BP" autocomplete="off"></div>
+    <div class="chips" id="catChips"></div>
+    <div class="count" id="count"></div>
+    <div class="list" id="list"></div>
+    <button class="more" id="moreBtn" style="display:none">더 보기</button>
+  </section>
+
+  <!-- 어근 -->
+  <section id="tab-parts" style="display:none">
+    <div class="search"><input id="pq" type="search" placeholder="예: itis, 심장, hepat" autocomplete="off"></div>
+    <div class="chips" id="partChips"></div>
+    <div class="count" id="pcount"></div>
+    <div class="list" id="plist"></div>
+  </section>
+
+  <!-- 분해기 -->
+  <section id="tab-decomp" style="display:none">
+    <div class="search"><input id="dq" type="search" placeholder="영어 의학용어 입력 (예: gastroenteritis)" autocomplete="off"></div>
+    <div class="examples" id="examples"></div>
+    <div class="decomp-result" id="dresult"></div>
+    <p class="hint">💡 의학용어는 대부분 <b>접두사 + 어근 + (연결모음 o) + 접미사</b>로 이루어져요.
+      예를 들어 <b>hepat</b>(간) + <b>itis</b>(염증) = hepatitis(간염)이에요.
+      분해 결과는 자동으로 추정한 것이라 틀릴 수 있어요.</p>
+  </section>
+
+  <footer>
+    학습용 의학용어 사전 · 용어 <span id="totalTerms"></span>개 · 어근 <span id="totalParts"></span>개<br>
+    ⚠️ 공부용 참고 자료예요. 진단이나 치료에 사용하지 마세요.
+  </footer>
+</div>
+
+<script>
+// ================= 데이터 =================
+// 형식: 영어|한글|분류코드|설명
+const CATS = {
+  a: "해부·방향", g: "일반·병리", c: "심혈관", r: "호흡기", d: "소화기", n: "신경",
+  m: "근골격", u: "비뇨·생식", e: "내분비", b: "혈액·면역", s: "피부",
+  o: "눈·귀·코", i: "감염", p: "정신", t: "검사·치료·약물", x: "약어"
+};
+
+const TERM_DATA = `
+anterior|전방(앞쪽)|a|몸의 앞쪽, 배 쪽을 가리킴
+posterior|후방(뒤쪽)|a|몸의 뒤쪽, 등 쪽을 가리킴
+superior|상방(위쪽)|a|머리 쪽에 더 가까운 위치
+inferior|하방(아래쪽)|a|발 쪽에 더 가까운 위치
+medial|내측|a|몸의 정중선에 더 가까운 위치
+lateral|외측|a|몸의 정중선에서 더 먼 위치
+proximal|근위|a|몸통이나 부착 부위에 더 가까운 위치
+distal|원위|a|몸통이나 부착 부위에서 더 먼 위치
+dorsal|등쪽|a|등 쪽(후방)과 같은 뜻
+ventral|배쪽|a|배 쪽(전방)과 같은 뜻
+supine|앙와위|a|등을 대고 바로 누운 자세
+prone|복와위|a|배를 대고 엎드린 자세
+sagittal plane|시상면|a|몸을 좌우로 나누는 면
+coronal plane|관상면|a|몸을 앞뒤로 나누는 면 (frontal plane)
+transverse plane|횡단면|a|몸을 위아래로 나누는 면
+abdomen|복부|a|가슴과 골반 사이의 배 부분
+thorax|흉부|a|목과 횡격막 사이의 가슴 부분
+pelvis|골반|a|몸통 아래쪽, 엉덩뼈로 둘러싸인 부분
+cranium|두개골|a|뇌를 감싸는 머리뼈
+vertebra|척추뼈|a|척주를 이루는 각각의 뼈 (복수형 vertebrae)
+sternum|흉골|a|가슴 가운데의 납작한 복장뼈
+clavicle|쇄골|a|어깨와 흉골을 잇는 빗장뼈
+scapula|견갑골|a|등 위쪽의 삼각형 어깨뼈
+humerus|상완골|a|위팔의 뼈
+radius|요골|a|아래팔 엄지 쪽의 뼈
+ulna|척골|a|아래팔 새끼손가락 쪽의 뼈
+femur|대퇴골|a|넓적다리뼈, 인체에서 가장 긴 뼈
+tibia|경골|a|정강이 안쪽의 굵은 뼈
+fibula|비골|a|정강이 바깥쪽의 가는 뼈
+diaphragm|횡격막|a|흉강과 복강을 나누는 호흡 근육
+peritoneum|복막|a|복강 안쪽과 장기를 덮는 막
+mediastinum|종격동|a|양쪽 폐 사이의 공간 (심장, 기관, 식도 등이 있음)
+diagnosis|진단|g|증상과 검사를 바탕으로 병을 판정하는 것
+prognosis|예후|g|병의 경과와 결과에 대한 예측
+symptom|증상|g|환자가 주관적으로 느끼는 이상 (예: 통증)
+sign|징후|g|검사자가 객관적으로 관찰한 이상 (예: 발열)
+syndrome|증후군|g|함께 나타나는 증상과 징후의 묶음
+acute|급성|g|갑자기 시작되고 경과가 짧은
+chronic|만성|g|오래 지속되거나 천천히 진행되는
+benign|양성|g|퍼지지 않고 생명에 덜 위험한 (주로 종양)
+malignant|악성|g|침윤과 전이를 하여 위험한 (주로 종양)
+etiology|병인|g|병의 원인 또는 원인을 연구하는 학문
+idiopathic|특발성|g|원인을 알 수 없는
+congenital|선천성|g|태어날 때부터 있는
+iatrogenic|의인성|g|의료 행위 때문에 생긴
+lesion|병변|g|병으로 인해 조직이 변한 부위
+inflammation|염증|g|손상이나 감염에 대한 반응 (발적, 열감, 부종, 통증)
+edema|부종|g|조직에 체액이 고여 붓는 것
+necrosis|괴사|g|조직이나 세포가 죽는 것
+atrophy|위축|g|세포나 조직, 장기의 크기가 줄어드는 것
+hypertrophy|비대|g|세포 크기가 커져 조직이 커지는 것
+hyperplasia|과형성|g|세포 수가 늘어나 조직이 커지는 것
+neoplasm|신생물(종양)|g|비정상적으로 증식한 조직 덩어리
+metastasis|전이|g|암세포가 다른 장기로 퍼지는 것
+biopsy|생검|g|진단을 위해 조직 일부를 떼어 내 검사하는 것
+pyrexia|발열|g|체온이 정상보다 높은 상태 (fever)
+syncope|실신|g|뇌 혈류가 줄어 일시적으로 의식을 잃는 것
+malaise|권태감|g|전신이 불편하고 기운이 없는 느낌
+anorexia|식욕부진|g|식욕이 떨어지거나 없는 상태
+cachexia|악액질|g|만성 질환으로 인한 심한 체중 감소와 쇠약
+remission|관해|g|병의 증상이 줄거나 사라진 상태
+relapse|재발|g|좋아졌던 병이 다시 나빠지는 것
+palliative care|완화의료|g|완치보다 증상 완화와 삶의 질에 초점을 둔 치료
+asymptomatic|무증상|g|증상이 없는 상태
+comorbidity|동반질환|g|주된 질환과 함께 가지고 있는 다른 질환
+incidence|발생률|g|일정 기간 새로 생긴 환자의 비율
+prevalence|유병률|g|특정 시점에 병을 가진 사람의 비율
+mortality|사망률|g|일정 기간 사망한 사람의 비율
+morbidity|이환율|g|병에 걸리는 비율 또는 병적 상태
+hypertension|고혈압|c|혈압이 지속적으로 높은 상태 (보통 140/90mmHg 이상)
+hypotension|저혈압|c|혈압이 정상보다 낮은 상태
+tachycardia|빈맥|c|심박수가 분당 100회를 넘는 상태
+bradycardia|서맥|c|심박수가 분당 60회 미만인 상태
+arrhythmia|부정맥|c|심장 박동의 리듬이나 속도가 비정상인 상태
+atrial fibrillation|심방세동|c|심방이 불규칙하게 빠르게 떨리는 부정맥 (AF)
+myocardial infarction|심근경색|c|관상동맥이 막혀 심장 근육이 괴사하는 질환 (MI)
+angina pectoris|협심증|c|심근 허혈로 생기는 가슴 통증
+heart failure|심부전|c|심장이 몸에 필요한 만큼 혈액을 내보내지 못하는 상태
+cardiomyopathy|심근병증|c|심장 근육 자체에 생긴 질환
+atherosclerosis|죽상경화증|c|동맥 벽에 지방(플라크)이 쌓여 좁아지는 것
+arteriosclerosis|동맥경화증|c|동맥 벽이 두꺼워지고 딱딱해지는 것
+aneurysm|동맥류|c|동맥 벽이 약해져 풍선처럼 부푼 것
+thrombosis|혈전증|c|혈관 안에 피떡(혈전)이 생기는 것
+embolism|색전증|c|혈전 등이 떠돌다가 혈관을 막는 것
+deep vein thrombosis|심부정맥혈전증|c|다리 깊은 정맥에 혈전이 생기는 것 (DVT)
+varicose veins|하지정맥류|c|정맥이 늘어나 구불구불하게 튀어나온 것
+endocarditis|심내막염|c|심장 안쪽 막(심내막)의 염증
+pericarditis|심낭염|c|심장을 싸는 막(심낭)의 염증
+myocarditis|심근염|c|심장 근육의 염증
+murmur|심잡음|c|청진할 때 들리는 비정상적인 심장 소리
+palpitation|심계항진|c|심장이 두근거리는 것을 스스로 느끼는 것
+cardiac arrest|심정지|c|심장이 효과적으로 뛰지 않아 혈액 순환이 멈춘 상태
+ischemia|허혈|c|혈류가 부족해 조직에 산소가 모자란 상태
+cyanosis|청색증|c|산소 부족으로 피부나 입술이 파랗게 변하는 것
+coronary artery|관상동맥|c|심장 근육에 혈액을 공급하는 동맥
+stenosis|협착|c|관이나 판막이 좁아진 상태
+electrocardiogram|심전도|t|심장의 전기 활동을 기록한 것 (ECG, EKG)
+echocardiography|심장초음파|t|초음파로 심장의 구조와 움직임을 보는 검사
+angioplasty|혈관성형술|t|좁아진 혈관을 풍선 등으로 넓히는 시술
+stent|스텐트|t|좁아진 혈관을 넓혀 유지하는 그물망 관
+asthma|천식|r|기도가 과민하게 좁아져 호흡곤란과 쌕쌕거림이 생기는 질환
+COPD|만성폐쇄성폐질환|r|기류가 계속 제한되는 폐 질환 (만성기관지염, 폐기종 포함)
+pneumonia|폐렴|r|폐 조직(폐포)의 염증, 주로 감염 때문
+bronchitis|기관지염|r|기관지의 염증
+bronchiectasis|기관지확장증|r|기관지가 영구적으로 넓어진 상태
+emphysema|폐기종|r|폐포가 파괴되어 늘어난 상태
+tuberculosis|결핵|r|결핵균에 의한 감염병, 주로 폐를 침범 (TB)
+pulmonary embolism|폐색전증|r|혈전이 폐동맥을 막는 것 (PE)
+pneumothorax|기흉|r|흉막강에 공기가 차서 폐가 쪼그라드는 것
+pleural effusion|흉막삼출|r|흉막강에 액체가 고이는 것
+atelectasis|무기폐|r|폐의 일부가 쪼그라들어 공기가 없는 상태
+pulmonary fibrosis|폐섬유증|r|폐 조직이 굳어지는 질환
+ARDS|급성호흡곤란증후군|r|폐에 심한 염증이 생겨 갑자기 호흡부전이 오는 상태
+dyspnea|호흡곤란|r|숨쉬기 힘들거나 숨이 찬 느낌
+apnea|무호흡|r|숨이 일시적으로 멈추는 것
+tachypnea|빈호흡|r|호흡이 비정상적으로 빠른 상태
+hypoxia|저산소증|r|조직에 산소가 부족한 상태
+hemoptysis|객혈|r|기도나 폐에서 나온 피를 기침으로 뱉는 것
+sputum|객담(가래)|r|기도에서 기침으로 나오는 분비물
+wheezing|천명음|r|좁아진 기도에서 나는 쌕쌕거리는 소리
+rhinitis|비염|o|코 점막의 염증
+sinusitis|부비동염|o|부비동의 염증 (축농증)
+pharyngitis|인두염|r|인두(목구멍)의 염증
+laryngitis|후두염|r|후두의 염증
+bronchoscopy|기관지내시경|t|내시경으로 기관지 안을 보는 검사
+spirometry|폐활량 측정|t|들이쉬고 내쉬는 공기의 양과 속도를 재는 검사
+intubation|기관내삽관|t|기도를 확보하려고 기관에 관을 넣는 것
+tracheostomy|기관절개술|t|목 앞쪽의 기관에 구멍을 내 숨길을 만드는 수술
+gastritis|위염|d|위 점막의 염증
+gastroenteritis|위장염|d|위와 장의 염증 (구토, 설사)
+peptic ulcer|소화성궤양|d|위산 때문에 위나 십이지장 점막이 헐어 패인 것
+GERD|위식도역류질환|d|위산이 식도로 역류해 속쓰림 등이 생기는 질환
+dysphagia|연하곤란|d|음식을 삼키기 어려운 증상
+nausea|오심|d|토할 것 같은 메스꺼움
+emesis|구토|d|위 내용물을 입으로 토하는 것 (vomiting)
+diarrhea|설사|d|묽은 변을 자주 보는 것
+constipation|변비|d|배변이 드물거나 어려운 상태
+hematemesis|토혈|d|피를 토하는 것 (상부위장관 출혈)
+melena|흑색변|d|검고 끈적한 타르 같은 변 (상부위장관 출혈)
+hematochezia|혈변|d|선홍색 피가 섞인 변 (하부위장관 출혈)
+jaundice|황달|d|빌리루빈이 쌓여 피부와 눈이 노래지는 것 (icterus)
+hepatitis|간염|d|간의 염증
+cirrhosis|간경변|d|간 조직이 섬유화되어 굳고 기능이 떨어진 상태
+fatty liver|지방간|d|간세포에 지방이 과도하게 쌓인 상태
+cholecystitis|담낭염|d|쓸개(담낭)의 염증
+cholelithiasis|담석증|d|담낭에 돌(담석)이 생긴 것
+pancreatitis|췌장염|d|췌장의 염증
+appendicitis|충수염|d|충수(맹장 끝)의 염증, 흔히 맹장염이라 부름
+ileus|장폐색|d|장의 내용물이 지나가지 못하는 상태
+hernia|탈장|d|장기가 약한 벽을 뚫고 튀어나온 것
+hemorrhoids|치핵|d|항문 주위 혈관이 부풀어 생긴 덩어리 (치질)
+Crohn's disease|크론병|d|입부터 항문까지 어디든 생길 수 있는 만성 염증성 장질환
+ulcerative colitis|궤양성대장염|d|대장 점막에 생기는 만성 염증성 장질환
+irritable bowel syndrome|과민성대장증후군|d|구조적 이상 없이 복통과 배변 변화가 반복되는 질환 (IBS)
+ascites|복수|d|복강에 액체가 고이는 것
+dyspepsia|소화불량|d|명치 부위의 불편감, 더부룩함
+diverticulitis|게실염|d|장 벽에 생긴 주머니(게실)의 염증
+peritonitis|복막염|d|복막의 염증
+colonoscopy|대장내시경|t|내시경으로 대장을 보는 검사
+gastroscopy|위내시경|t|내시경으로 식도, 위, 십이지장을 보는 검사
+cholecystectomy|담낭절제술|t|담낭을 떼어 내는 수술
+appendectomy|충수절제술|t|충수를 떼어 내는 수술
+colostomy|결장루설치술|t|결장을 배 벽에 연결해 인공 항문을 만드는 수술
+stroke|뇌졸중|n|뇌혈관이 막히거나 터져 뇌가 손상되는 질환 (CVA)
+cerebral infarction|뇌경색|n|뇌혈관이 막혀 뇌 조직이 괴사하는 것
+cerebral hemorrhage|뇌출혈|n|뇌 안의 혈관이 터져 출혈이 생기는 것
+subarachnoid hemorrhage|지주막하출혈|n|거미막 아래 공간에 생기는 출혈, 주로 뇌동맥류 파열 때문 (SAH)
+TIA|일과성허혈발작|n|뇌혈류가 잠깐 부족했다가 24시간 안에 회복되는 것
+epilepsy|뇌전증|n|발작이 반복되는 만성 신경 질환 (예전 이름: 간질)
+seizure|발작|n|뇌의 비정상적인 전기 활동으로 생기는 증상
+migraine|편두통|n|욱신거리는 두통이 반복되는 질환, 구역이나 빛 과민이 함께 오기도 함
+cephalgia|두통|n|머리의 통증 (headache)
+dementia|치매|n|인지 기능이 떨어져 일상생활에 지장이 생기는 상태
+Alzheimer's disease|알츠하이머병|n|가장 흔한 치매 원인, 진행성 퇴행성 뇌 질환
+Parkinson's disease|파킨슨병|n|도파민 신경이 줄어 떨림, 경직, 느린 동작이 생기는 질환
+multiple sclerosis|다발성경화증|n|중추신경의 수초가 손상되는 자가면역 질환 (MS)
+amyotrophic lateral sclerosis|근위축성측삭경화증|n|운동신경이 서서히 죽는 질환 (ALS, 루게릭병)
+meningitis|수막염|n|뇌와 척수를 싸는 막(수막)의 염증
+encephalitis|뇌염|n|뇌 조직의 염증
+neuropathy|신경병증|n|말초신경이 손상된 상태
+paralysis|마비|n|근육을 움직이는 능력을 잃은 상태
+hemiplegia|편마비|n|몸의 한쪽(좌 또는 우) 마비
+paraplegia|하반신마비|n|양쪽 다리의 마비
+quadriplegia|사지마비|n|팔다리 네 곳의 마비 (tetraplegia)
+aphasia|실어증|n|뇌 손상으로 말하거나 이해하는 능력에 장애가 생긴 것
+ataxia|운동실조|n|근육 운동의 조화가 깨진 상태
+vertigo|현훈|n|자신이나 주변이 빙빙 도는 듯한 어지럼증
+tremor|진전(떨림)|n|몸의 일부가 의지와 상관없이 떨리는 것
+coma|혼수|n|자극을 줘도 깨어나지 않는 깊은 의식 상실
+concussion|뇌진탕|n|머리 충격으로 일시적인 뇌 기능 장애가 생긴 것
+hydrocephalus|수두증|n|뇌실에 뇌척수액이 과도하게 고인 상태
+paresthesia|감각이상|n|저리거나 따끔거리는 비정상적인 감각
+EEG|뇌파검사|t|뇌의 전기 활동을 기록하는 검사
+lumbar puncture|요추천자|t|허리에 바늘을 넣어 뇌척수액을 뽑는 검사
+fracture|골절|m|뼈가 부러지는 것 (Fx)
+osteoporosis|골다공증|m|뼈의 양이 줄고 약해져 쉽게 부러지는 상태
+osteoarthritis|골관절염|m|관절 연골이 닳아 생기는 퇴행성 관절염 (OA)
+rheumatoid arthritis|류마티스관절염|m|관절의 활막에 생기는 자가면역 염증 질환 (RA)
+gout|통풍|m|요산 결정이 관절에 쌓여 생기는 염증성 관절염
+arthritis|관절염|m|관절의 염증
+dislocation|탈구|m|관절을 이루는 뼈가 제자리에서 빠진 것
+sprain|염좌|m|인대가 늘어나거나 찢어진 것 (삠)
+tendinitis|건염|m|힘줄의 염증
+bursitis|점액낭염|m|관절 주위 점액주머니의 염증
+scoliosis|척추측만증|m|척추가 옆으로 휜 상태
+kyphosis|척추후만증|m|등이 뒤로 과도하게 굽은 상태 (곱사등)
+herniated disc|추간판탈출증|m|척추 사이 디스크가 튀어나와 신경을 누르는 것 (HIVD)
+spinal stenosis|척추관협착증|m|척추관이 좁아져 신경이 눌리는 것
+ankylosing spondylitis|강직성척추염|m|척추와 골반 관절이 염증으로 굳어 가는 질환
+osteomyelitis|골수염|m|뼈와 골수의 감염
+myalgia|근육통|m|근육의 통증
+arthralgia|관절통|m|관절의 통증
+carpal tunnel syndrome|수근관증후군|m|손목에서 정중신경이 눌려 손이 저린 질환
+rhabdomyolysis|횡문근융해증|m|골격근이 파괴되어 근육 성분이 혈액으로 나오는 것
+osteosarcoma|골육종|m|뼈에 생기는 악성 종양
+arthroscopy|관절경검사|t|내시경으로 관절 안을 보는 검사나 수술
+arthroplasty|관절성형술|t|손상된 관절을 고치거나 인공관절로 바꾸는 수술
+amputation|절단술|t|팔다리 등 신체 일부를 잘라 내는 것
+urinary tract infection|요로감염|u|요도, 방광, 신장 등 소변길의 감염 (UTI)
+cystitis|방광염|u|방광의 염증
+pyelonephritis|신우신염|u|신우와 신장 실질의 세균 감염
+nephritis|신장염|u|신장의 염증
+glomerulonephritis|사구체신염|u|신장 사구체의 염증
+renal failure|신부전|u|신장 기능이 크게 떨어진 상태
+chronic kidney disease|만성콩팥병|u|신장 기능이 3개월 이상 떨어져 있는 상태 (CKD)
+nephrolithiasis|신결석|u|신장에 돌이 생긴 것 (콩팥돌)
+hematuria|혈뇨|u|소변에 피가 섞인 것
+proteinuria|단백뇨|u|소변에 단백질이 비정상적으로 많은 것
+dysuria|배뇨통|u|소변 볼 때의 통증이나 불편감
+oliguria|핍뇨|u|소변량이 매우 적은 상태 (하루 400mL 미만)
+anuria|무뇨|u|소변이 거의 나오지 않는 상태 (하루 100mL 미만)
+polyuria|다뇨|u|소변량이 비정상적으로 많은 상태
+nocturia|야간뇨|u|밤에 자다가 소변을 보러 깨는 것
+urinary incontinence|요실금|u|의지와 상관없이 소변이 새는 것
+urinary retention|요저류|u|방광에 소변이 차 있는데 배출하지 못하는 것
+benign prostatic hyperplasia|양성전립선비대증|u|전립선이 커져 배뇨 장애가 생기는 것 (BPH)
+prostatitis|전립선염|u|전립선의 염증
+amenorrhea|무월경|u|월경이 없는 상태
+dysmenorrhea|월경통|u|월경 때의 통증
+menorrhagia|월경과다|u|월경량이 많거나 기간이 긴 것
+menopause|폐경|u|난소 기능이 멈춰 월경이 영구적으로 끝나는 것
+endometriosis|자궁내막증|u|자궁내막 조직이 자궁 밖에 자라는 질환
+uterine myoma|자궁근종|u|자궁 근육에 생기는 양성 종양
+ovarian cyst|난소낭종|u|난소에 생긴 물혹
+infertility|난임(불임)|u|1년 이상 피임 없이 임신이 되지 않는 상태
+ectopic pregnancy|자궁외임신|u|수정란이 자궁강 밖에 착상한 임신
+preeclampsia|전자간증|u|임신 20주 이후 고혈압과 단백뇨가 나타나는 질환
+gestation|재태(임신 기간)|u|수정부터 출산까지의 기간
+hemodialysis|혈액투석|t|기계로 혈액의 노폐물을 걸러 내는 치료
+catheterization|도관삽입(도뇨)|t|몸속에 관을 넣는 것, 흔히 방광에 소변줄을 넣는 것
+cesarean section|제왕절개술|t|배와 자궁을 절개해 아기를 꺼내는 수술 (C-section)
+hysterectomy|자궁절제술|t|자궁을 떼어 내는 수술
+mastectomy|유방절제술|t|유방을 떼어 내는 수술
+diabetes mellitus|당뇨병|e|인슐린 부족이나 저항으로 혈당이 높은 질환 (DM)
+hypoglycemia|저혈당|e|혈당이 정상보다 낮은 상태
+hyperglycemia|고혈당|e|혈당이 정상보다 높은 상태
+diabetic ketoacidosis|당뇨병성케톤산증|e|인슐린이 심하게 부족해 케톤산이 쌓이는 응급 상태 (DKA)
+hyperthyroidism|갑상선기능항진증|e|갑상선호르몬이 너무 많이 나오는 상태
+hypothyroidism|갑상선기능저하증|e|갑상선호르몬이 부족한 상태
+goiter|갑상선종|e|갑상선이 커진 상태
+Graves' disease|그레이브스병|e|자가면역 때문에 생기는 갑상선기능항진증
+Hashimoto's thyroiditis|하시모토갑상선염|e|자가면역성 만성 갑상선염, 기능저하의 흔한 원인
+Cushing's syndrome|쿠싱증후군|e|코르티솔이 과다해 생기는 증후군 (달덩이 얼굴, 복부비만)
+Addison's disease|애디슨병|e|부신피질 호르몬이 부족한 질환
+acromegaly|말단비대증|e|성장호르몬 과다로 손발과 얼굴이 커지는 질환
+diabetes insipidus|요붕증|e|항이뇨호르몬 문제로 묽은 소변을 많이 보는 질환
+pheochromocytoma|갈색세포종|e|부신에서 카테콜아민을 과다 분비하는 종양
+hyperlipidemia|고지혈증|e|혈중 지질(콜레스테롤, 중성지방)이 높은 상태
+obesity|비만|e|체지방이 과도하게 쌓인 상태 (한국 기준 BMI 25 이상)
+metabolic syndrome|대사증후군|e|복부비만, 고혈압, 고혈당, 이상지질혈증이 함께 있는 상태
+polydipsia|다음증|e|갈증이 심해 물을 많이 마시는 것
+polyphagia|다식증|e|비정상적으로 많이 먹는 것
+insulin|인슐린|e|췌장 베타세포에서 나와 혈당을 낮추는 호르몬
+HbA1c|당화혈색소|e|최근 2~3개월의 평균 혈당을 반영하는 수치
+anemia|빈혈|b|적혈구나 혈색소가 부족한 상태
+iron deficiency anemia|철결핍성빈혈|b|철분이 부족해 생기는 빈혈, 가장 흔한 빈혈
+leukemia|백혈병|b|골수에서 비정상 백혈구가 증식하는 혈액암
+lymphoma|림프종|b|림프계에 생기는 악성 종양
+multiple myeloma|다발골수종|b|형질세포가 악성으로 증식하는 혈액암
+leukocytosis|백혈구증가증|b|백혈구 수가 정상보다 많은 상태
+leukopenia|백혈구감소증|b|백혈구 수가 정상보다 적은 상태
+neutropenia|호중구감소증|b|호중구가 적어 감염 위험이 높은 상태
+thrombocytopenia|혈소판감소증|b|혈소판 수가 적어 출혈 위험이 높은 상태
+hemophilia|혈우병|b|응고인자가 부족해 피가 잘 멎지 않는 유전 질환
+DIC|파종성혈관내응고|b|온몸의 혈관 안에서 응고가 일어나 응고인자가 소모되는 상태
+hemorrhage|출혈|b|혈관 밖으로 피가 나오는 것
+hemolysis|용혈|b|적혈구가 파괴되는 것
+sepsis|패혈증|b|감염에 대한 몸의 반응이 조절되지 않아 장기가 손상되는 상태
+anaphylaxis|아나필락시스|b|생명을 위협하는 급성 전신 알레르기 반응
+allergy|알레르기|b|무해한 물질에 면역계가 과민하게 반응하는 것
+autoimmune disease|자가면역질환|b|면역계가 자기 몸을 공격하는 질환
+systemic lupus erythematosus|전신홍반루푸스|b|여러 장기를 침범하는 자가면역 질환 (SLE)
+immunodeficiency|면역결핍|b|면역 기능이 떨어진 상태
+lymphadenopathy|림프절병증|b|림프절이 붓거나 커진 상태
+splenomegaly|비장비대|b|비장이 커진 상태
+hepatomegaly|간비대|d|간이 커진 상태
+hematocrit|적혈구용적률|b|혈액에서 적혈구가 차지하는 부피 비율 (Hct)
+hemoglobin|혈색소|b|적혈구 안에서 산소를 운반하는 단백질 (Hb)
+transfusion|수혈|t|다른 사람의 혈액이나 혈액 성분을 넣어 주는 것
+dermatitis|피부염|s|피부의 염증
+atopic dermatitis|아토피피부염|s|가려움이 심한 만성 재발성 피부염
+eczema|습진|s|가려움, 홍반, 진물이 생기는 피부염
+urticaria|두드러기|s|가렵고 부풀어 오르는 붉은 팽진
+psoriasis|건선|s|은백색 각질이 덮인 붉은 판이 생기는 만성 피부병
+acne|여드름|s|모낭과 피지샘의 염증
+cellulitis|봉와직염|s|피부 깊은 층과 피하조직의 세균 감염
+herpes zoster|대상포진|s|수두 바이러스가 재활성화되어 띠 모양 물집과 통증이 생기는 것
+pruritus|소양증|s|가려움증
+erythema|홍반|s|혈관이 넓어져 피부가 붉어지는 것
+rash|발진|s|피부에 돋는 붉은 반점이나 뾰루지
+alopecia|탈모증|s|머리카락이나 털이 빠지는 것
+burn|화상|s|열, 화학물질, 전기 등으로 피부가 손상되는 것
+pressure ulcer|욕창|s|오래 눌린 부위의 피부와 조직이 손상되는 것 (pressure injury)
+melanoma|흑색종|s|멜라닌세포에서 생기는 악성 피부암
+basal cell carcinoma|기저세포암|s|가장 흔한 피부암, 전이는 드묾
+abscess|농양|s|조직 안에 고름이 고인 것
+vitiligo|백반증|s|멜라닌세포가 없어져 피부가 하얗게 되는 질환
+laceration|열상|s|날카롭지 않은 힘으로 피부가 찢어진 상처
+contusion|타박상|s|부딪혀서 생긴 멍
+abrasion|찰과상|s|피부가 쓸려서 벗겨진 상처
+cataract|백내장|o|수정체가 혼탁해져 시야가 뿌옇게 되는 것
+glaucoma|녹내장|o|시신경이 손상되어 시야가 좁아지는 질환, 흔히 안압 상승과 관련
+myopia|근시|o|먼 곳이 잘 안 보이는 굴절 이상
+hyperopia|원시|o|가까운 곳이 잘 안 보이는 굴절 이상
+astigmatism|난시|o|각막이나 수정체가 고르지 않아 상이 흐려지는 것
+presbyopia|노안|o|나이가 들어 가까운 곳에 초점을 맞추기 어려운 것
+conjunctivitis|결막염|o|결막의 염증
+macular degeneration|황반변성|o|망막 중심부(황반)가 손상되어 중심 시력이 떨어지는 질환
+diabetic retinopathy|당뇨망막병증|o|당뇨병 때문에 망막 혈관이 손상되는 것
+retinal detachment|망막박리|o|망막이 안쪽 벽에서 떨어지는 응급 질환
+strabismus|사시|o|두 눈이 같은 곳을 보지 못하는 상태
+otitis media|중이염|o|중이의 염증
+tinnitus|이명|o|외부 소리 없이 귀에서 소리가 들리는 것
+hearing loss|난청|o|소리를 듣는 능력이 떨어진 상태
+Meniere's disease|메니에르병|o|현훈, 이명, 난청, 귀 먹먹함이 반복되는 내이 질환
+epistaxis|비출혈|o|코피
+tonsillitis|편도염|o|편도의 염증
+infection|감염|i|병원체가 몸에 들어와 증식하는 것
+influenza|인플루엔자|i|인플루엔자 바이러스에 의한 급성 호흡기 감염 (독감)
+COVID-19|코로나바이러스감염증-19|i|SARS-CoV-2 바이러스에 의한 감염병
+HIV|인간면역결핍바이러스|i|면역세포(CD4)를 공격하는 바이러스, 진행되면 AIDS
+AIDS|후천성면역결핍증|i|HIV 감염으로 면역이 심하게 떨어진 상태
+measles|홍역|i|발열과 발진이 생기는 전염성 강한 바이러스 질환
+varicella|수두|i|수두-대상포진 바이러스에 의한 물집 발진 질환
+malaria|말라리아|i|모기가 옮기는 말라리아 원충 감염
+nosocomial infection|병원감염|i|병원에 입원한 뒤 생긴 감염 (healthcare-associated infection)
+MRSA|메티실린내성황색포도알균|i|여러 항생제에 내성이 있는 황색포도알균
+incubation period|잠복기|i|감염된 뒤 증상이 나타날 때까지의 기간
+pandemic|팬데믹|i|감염병이 전 세계적으로 크게 유행하는 것
+epidemic|유행병|i|특정 지역에서 감염병이 평소보다 많이 발생하는 것
+antibiotic|항생제|t|세균을 죽이거나 증식을 억제하는 약
+antibiotic resistance|항생제내성|i|세균이 항생제에 견디는 능력을 갖게 된 것
+vaccine|백신|t|면역을 만들기 위해 접종하는 물질
+depression|우울증|p|지속적인 우울감과 흥미 상실이 나타나는 기분장애
+bipolar disorder|양극성장애|p|조증(또는 경조증)과 우울증이 번갈아 나타나는 장애
+schizophrenia|조현병|p|망상, 환각, 와해된 사고 등이 나타나는 정신질환
+anxiety disorder|불안장애|p|과도한 불안과 걱정이 지속되는 장애
+panic disorder|공황장애|p|갑작스러운 극심한 공포(공황발작)가 반복되는 장애
+OCD|강박장애|p|원치 않는 생각(강박사고)과 반복 행동(강박행동)이 있는 장애
+PTSD|외상후스트레스장애|p|큰 충격적 사건 뒤에 재경험, 회피, 과각성이 지속되는 장애
+ADHD|주의력결핍과잉행동장애|p|부주의, 과잉행동, 충동성이 특징인 신경발달장애
+autism spectrum disorder|자폐스펙트럼장애|p|사회적 소통의 어려움과 제한적, 반복적 행동이 특징인 발달장애 (ASD)
+insomnia|불면증|p|잠들기 어렵거나 자주 깨는 수면장애
+delirium|섬망|p|갑자기 생기는 의식 혼란과 주의력 장애, 대개 원인 질환이 있음
+hallucination|환각|p|자극이 없는데도 보이거나 들리는 것
+delusion|망상|p|사실이 아닌데도 굳게 믿는 잘못된 생각
+anorexia nervosa|신경성식욕부진증|p|체중 증가를 극도로 두려워해 음식을 제한하는 섭식장애
+substance use disorder|물질사용장애|p|술이나 약물을 조절하지 못하고 계속 사용하는 장애
+analgesic|진통제|t|통증을 줄이는 약
+antipyretic|해열제|t|열을 내리는 약
+anticoagulant|항응고제|t|피가 굳지 않게 하는 약
+antihypertensive|항고혈압제|t|혈압을 낮추는 약
+diuretic|이뇨제|t|소변량을 늘려 몸의 수분을 빼는 약
+NSAIDs|비스테로이드소염진통제|t|염증과 통증을 줄이는 약 (예: 이부프로펜)
+corticosteroid|코르티코스테로이드|t|강력한 항염증, 면역억제 작용을 하는 호르몬 약
+anesthesia|마취|t|통증이나 감각을 느끼지 못하게 하는 것
+sedation|진정|t|약으로 불안을 줄이고 차분하게 만드는 것
+chemotherapy|항암화학요법|t|약물로 암세포를 죽이는 치료
+radiotherapy|방사선치료|t|방사선으로 암세포를 죽이는 치료
+CT|컴퓨터단층촬영|t|X선으로 몸의 단면 영상을 얻는 검사 (computed tomography)
+MRI|자기공명영상|t|자기장과 전파로 몸속을 촬영하는 검사
+ultrasonography|초음파검사|t|초음파로 몸속을 보는 검사
+radiography|방사선촬영(X선)|t|X선으로 몸속을 촬영하는 검사
+CPR|심폐소생술|t|가슴압박과 인공호흡으로 순환을 유지하는 응급처치
+defibrillation|제세동|t|전기 충격으로 비정상적인 심장 리듬을 되돌리는 것
+intravenous|정맥 내|t|정맥 안으로 투여하는 것 (IV)
+intramuscular|근육 내|t|근육 안으로 투여하는 것 (IM)
+subcutaneous|피하|t|피부 밑으로 투여하는 것 (SC, SQ)
+contraindication|금기|t|특정 치료나 약을 쓰면 안 되는 상황
+side effect|부작용|t|치료나 약의 원하지 않은 효과
+placebo|위약|t|약효 성분이 없는 가짜 약
+transplantation|이식|t|장기나 조직을 옮겨 심는 것
+laparoscopy|복강경검사(수술)|t|배에 작은 구멍을 뚫고 카메라를 넣어 하는 검사나 수술
+suture|봉합|t|상처나 절개 부위를 꿰매는 것
+BP|혈압|x|Blood Pressure
+HR|심박수|x|Heart Rate
+RR|호흡수|x|Respiratory Rate
+BT|체온|x|Body Temperature
+SpO2|산소포화도|x|맥박산소측정기로 잰 동맥혈 산소포화도
+V/S|활력징후|x|Vital Signs (혈압, 맥박, 호흡, 체온)
+CBC|전혈구검사|x|Complete Blood Count
+BUN|혈액요소질소|x|Blood Urea Nitrogen, 신장 기능 지표
+Cr|크레아티닌|x|Creatinine, 신장 기능 지표
+AST/ALT|간효소 수치|x|간세포 손상을 반영하는 효소 검사
+CRP|C반응단백|x|C-Reactive Protein, 염증 지표
+ABGA|동맥혈가스분석|x|Arterial Blood Gas Analysis
+ECG/EKG|심전도|x|Electrocardiogram
+BMI|체질량지수|x|Body Mass Index, 몸무게(kg) ÷ 키(m)²
+GCS|글래스고혼수척도|x|Glasgow Coma Scale, 의식 수준을 3~15점으로 평가
+ICU|중환자실|x|Intensive Care Unit
+ER|응급실|x|Emergency Room (ED: Emergency Department)
+OR|수술실|x|Operating Room
+NPO|금식|x|Nil Per Os, 입으로 아무것도 먹지 않음
+PRN|필요시|x|Pro Re Nata, 필요할 때 투여
+qd|하루 1회|x|Quaque Die
+bid|하루 2회|x|Bis In Die
+tid|하루 3회|x|Ter In Die
+qid|하루 4회|x|Quater In Die
+hs|취침 전|x|Hora Somni
+ac|식전|x|Ante Cibum
+pc|식후|x|Post Cibum
+PO|경구|x|Per Os, 입으로 투여
+stat|즉시|x|Statim, 지금 바로
+Hx|병력|x|History
+Dx|진단|x|Diagnosis
+Tx|치료|x|Treatment
+Rx|처방|x|Prescription
+Sx|증상|x|Symptoms
+Fx|골절|x|Fracture
+CC|주호소|x|Chief Complaint, 환자가 병원에 온 주된 이유
+PE|신체검진|x|Physical Examination (폐색전증 Pulmonary Embolism을 뜻하기도 함)
+DNR|심폐소생술 거부|x|Do Not Resuscitate
+I/O|섭취량/배설량|x|Intake and Output
+s/p|~ 후 상태|x|Status Post (예: s/p appendectomy 충수절제술 후)
+r/o|감별 필요|x|Rule Out, 해당 질환인지 확인이 필요함
+f/u|추적관찰|x|Follow Up
+c/o|~을 호소함|x|Complains Of
+WNL|정상 범위|x|Within Normal Limits
+`;
+
+// 형식: 형태|종류|뜻|예시
+const PART_DATA = `
+a-, an-|접두사|없음, 아님|anemia 빈혈, apnea 무호흡
+ab-|접두사|~에서 떨어져|abnormal 비정상
+ad-|접두사|~쪽으로|adduction 내전
+anti-|접두사|반대, 대항|antibiotic 항생제
+auto-|접두사|자기, 스스로|autoimmune 자가면역
+bi-|접두사|둘|bilateral 양측
+brady-|접두사|느린|bradycardia 서맥
+contra-|접두사|반대|contraindication 금기
+dia-|접두사|통과, 완전히|diagnosis 진단
+dys-|접두사|나쁜, 어려운, 비정상|dyspnea 호흡곤란
+endo-|접두사|안쪽|endoscopy 내시경
+epi-|접두사|위, 위에|epidermis 표피
+eu-|접두사|정상, 좋은|euthyroid 정상 갑상선 기능
+ex-, exo-|접두사|밖|excision 절제
+extra-|접두사|바깥|extracellular 세포 밖
+hemi-|접두사|반(절반)|hemiplegia 편마비
+hetero-|접두사|다른|heterogeneous 이질적인
+homo-|접두사|같은|homogeneous 균질한
+hyper-|접두사|과다, 위|hypertension 고혈압
+hypo-|접두사|저하, 아래|hypoglycemia 저혈당
+inter-|접두사|사이|intercostal 늑간
+intra-|접두사|안|intravenous 정맥 내
+iso-|접두사|같은|isotonic 등장성
+macro-|접두사|큰|macrocyte 대적혈구
+mal-|접두사|나쁜|malnutrition 영양실조
+meta-|접두사|변화, 넘어서|metastasis 전이
+micro-|접두사|작은|microscope 현미경
+mono-, uni-|접두사|하나|mononucleosis 단핵구증
+neo-|접두사|새로운|neoplasm 신생물
+olig-|접두사|적은|oliguria 핍뇨
+pan-|접두사|전체|pancytopenia 범혈구감소증
+para-|접두사|옆, 비정상|paraplegia 하반신마비
+peri-|접두사|주위|pericarditis 심낭염
+poly-|접두사|많은|polyuria 다뇨
+post-|접두사|뒤, 후|postoperative 수술 후
+pre-|접두사|앞, 전|prenatal 출생 전
+pseudo-|접두사|거짓|pseudocyst 가성낭종
+quadri-|접두사|넷|quadriplegia 사지마비
+retro-|접두사|뒤|retroperitoneal 후복막
+sub-|접두사|아래|subcutaneous 피하
+supra-|접두사|위|suprapubic 치골 위
+syn-, sym-|접두사|함께|syndrome 증후군
+tachy-|접두사|빠른|tachycardia 빈맥
+trans-|접두사|통과, 가로질러|transfusion 수혈
+tri-|접두사|셋|tricuspid 삼첨판
+abdomin/o|어근|복부|abdominal 복부의
+aden/o|어근|샘(선)|adenoma 선종
+angi/o|어근|혈관|angiography 혈관조영술
+append/o|어근|충수|appendicitis 충수염
+arteri/o|어근|동맥|arteriosclerosis 동맥경화증
+arthr/o|어근|관절|arthritis 관절염
+bronch/o|어근|기관지|bronchitis 기관지염
+carcin/o|어근|암|carcinoma 암종
+cardi/o|어근|심장|cardiology 심장학
+cephal/o|어근|머리|cephalgia 두통
+cerebr/o|어근|대뇌|cerebral 대뇌의
+chol/e|어근|담즙|cholelithiasis 담석증
+cholecyst/o|어근|담낭|cholecystectomy 담낭절제술
+chondr/o|어근|연골|chondroma 연골종
+col/o|어근|결장(대장)|colonoscopy 대장내시경
+cost/o|어근|갈비뼈|intercostal 늑간
+crani/o|어근|두개(머리뼈)|craniotomy 개두술
+cyan/o|어근|청색|cyanosis 청색증
+cyst/o|어근|방광, 주머니|cystitis 방광염
+cyt/o|어근|세포|cytology 세포학
+dermat/o, derm/o|어근|피부|dermatitis 피부염
+duoden/o|어근|십이지장|duodenal ulcer 십이지장궤양
+encephal/o|어근|뇌|encephalitis 뇌염
+enter/o|어근|장(소장)|gastroenteritis 위장염
+erythr/o|어근|붉은|erythrocyte 적혈구
+gastr/o|어근|위|gastritis 위염
+gloss/o|어근|혀|glossitis 설염
+glyc/o|어근|당|hyperglycemia 고혈당
+gynec/o|어근|여성|gynecology 부인과학
+hem/o, hemat/o|어근|혈액|hematuria 혈뇨
+hepat/o|어근|간|hepatitis 간염
+hist/o|어근|조직|histology 조직학
+hyster/o|어근|자궁|hysterectomy 자궁절제술
+ile/o|어근|회장(소장 끝부분)|ileus 장폐색
+lapar/o|어근|복벽|laparoscopy 복강경
+laryng/o|어근|후두|laryngitis 후두염
+leuk/o|어근|흰|leukocyte 백혈구
+lip/o|어근|지방|lipoma 지방종
+lith/o|어근|돌|lithotripsy 쇄석술
+mamm/o, mast/o|어근|유방|mastectomy 유방절제술
+mening/o|어근|수막|meningitis 수막염
+my/o|어근|근육|myalgia 근육통
+myel/o|어근|골수, 척수|osteomyelitis 골수염
+nephr/o|어근|신장|nephritis 신장염
+neur/o|어근|신경|neuropathy 신경병증
+ocul/o|어근|눈|ocular 눈의
+onc/o|어근|종양|oncology 종양학
+ophthalm/o|어근|눈|ophthalmology 안과학
+or/o|어근|입|oral 구강의
+oste/o|어근|뼈|osteoporosis 골다공증
+ot/o|어근|귀|otitis 이염
+ox/o|어근|산소|hypoxia 저산소증
+pancreat/o|어근|췌장|pancreatitis 췌장염
+path/o|어근|질병|pathology 병리학
+ped/o|어근|소아|pediatrics 소아과
+pharyng/o|어근|인두|pharyngitis 인두염
+phleb/o|어근|정맥|phlebitis 정맥염
+pneum/o, pneumon/o|어근|폐, 공기|pneumonia 폐렴
+pulmon/o|어근|폐|pulmonary 폐의
+psych/o|어근|정신|psychiatry 정신의학
+py/o|어근|고름|pyuria 농뇨
+pyel/o|어근|신우|pyelonephritis 신우신염
+ren/o|어근|신장|renal 신장의
+rhin/o|어근|코|rhinitis 비염
+sarc/o|어근|살(결합조직)|sarcoma 육종
+spondyl/o|어근|척추|spondylitis 척추염
+splen/o|어근|비장|splenomegaly 비장비대
+stomat/o|어근|입|stomatitis 구내염
+therm/o|어근|열|thermometer 체온계
+thromb/o|어근|혈전|thrombosis 혈전증
+thyr/o|어근|갑상선|thyroiditis 갑상선염
+trache/o|어근|기관|tracheostomy 기관절개술
+ur/o|어근|소변|urology 비뇨의학
+vas/o|어근|혈관|vasoconstriction 혈관수축
+ven/o|어근|정맥|intravenous 정맥 내
+-algia|접미사|통증|neuralgia 신경통
+-cardia|접미사|심장 상태|tachycardia 빈맥
+-cele|접미사|탈출(헤르니아)|hydrocele 음낭수종
+-centesis|접미사|천자(바늘로 뽑기)|thoracentesis 흉강천자
+-cyte|접미사|세포|leukocyte 백혈구
+-dipsia|접미사|갈증|polydipsia 다음증
+-dynia|접미사|통증|pleurodynia 흉막통
+-ectomy|접미사|절제술(떼어 냄)|appendectomy 충수절제술
+-emesis|접미사|구토|hematemesis 토혈
+-emia|접미사|혈액 상태|anemia 빈혈
+-genic|접미사|생성되는, 원인이 되는|iatrogenic 의인성
+-gram|접미사|기록(결과물)|electrocardiogram 심전도
+-graphy|접미사|촬영법, 기록법|angiography 혈관조영술
+-ia|접미사|상태|pneumonia 폐렴
+-iasis|접미사|상태, 질환|cholelithiasis 담석증
+-ism|접미사|상태|hyperthyroidism 갑상선기능항진증
+-itis|접미사|염증|hepatitis 간염
+-lith|접미사|돌|nephrolith 신결석
+-logy|접미사|학문|cardiology 심장학
+-lysis|접미사|분해, 파괴|hemolysis 용혈
+-malacia|접미사|연화(물러짐)|osteomalacia 골연화증
+-megaly|접미사|비대(커짐)|hepatomegaly 간비대
+-meter|접미사|측정기|thermometer 체온계
+-oma|접미사|종양, 덩어리|lipoma 지방종
+-osis|접미사|비정상 상태|cyanosis 청색증
+-pathy|접미사|질병|neuropathy 신경병증
+-penia|접미사|감소, 부족|leukopenia 백혈구감소증
+-phagia|접미사|삼킴, 먹음|dysphagia 연하곤란
+-phasia|접미사|말|aphasia 실어증
+-plasty|접미사|성형술|angioplasty 혈관성형술
+-plegia|접미사|마비|hemiplegia 편마비
+-pnea|접미사|호흡|dyspnea 호흡곤란
+-ptosis|접미사|처짐|blepharoptosis 안검하수
+-rrhage, -rrhagia|접미사|대량 출혈, 과다 배출|hemorrhage 출혈
+-rrhea|접미사|흐름, 분비|diarrhea 설사
+-sclerosis|접미사|경화(딱딱해짐)|arteriosclerosis 동맥경화증
+-scopy|접미사|내시경 검사(들여다봄)|gastroscopy 위내시경
+-spasm|접미사|경련|bronchospasm 기관지경련
+-stenosis|접미사|협착(좁아짐)|spinal stenosis 척추관협착증
+-stomy|접미사|개구술(구멍 만들기)|colostomy 결장루설치술
+-tomy|접미사|절개술(자름)|craniotomy 개두술
+-trophy|접미사|영양, 발육|atrophy 위축
+-uria|접미사|소변 상태|hematuria 혈뇨
+`;
+
+// ================= 데이터 정리 =================
+const TERMS = TERM_DATA.trim().split("\n").map(line => {
+  const [en, ko, c, def] = line.split("|");
+  return { en, ko, cat: CATS[c] || "기타", def };
+});
+const PARTS = PART_DATA.trim().split("\n").map(line => {
+  const [form, type, mean, ex] = line.split("|");
+  return { form, type, mean, ex };
+});
+
+// 분해기용: "hem/o, hemat/o" → ["hem","hemat"] 같은 순수 형태
+const PART_FORMS = [];
+PARTS.forEach(p => {
+  p.form.split(",").forEach(f => {
+    const clean = f.trim().replace(/\/[a-z]+$/, "").replace(/-/g, "");
+    if (clean.length >= 2) PART_FORMS.push({ text: clean, part: p });
+  });
+});
+PART_FORMS.sort((a, b) => b.text.length - a.text.length);
+
+// ================= 도우미 =================
+const $ = id => document.getElementById(id);
+function norm(s) { return s.toLowerCase().replace(/[\s\-'’·]/g, ""); }
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function hl(text, q) {
+  if (!q) return esc(text);
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+}
+function load(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch (e) { return f; } }
+function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+// ================= 용어 검색 =================
+let curCat = "전체", shown = 40;
+
+function renderCatChips() {
+  const box = $("catChips");
+  box.innerHTML = "";
+  ["전체", ...Object.values(CATS)].forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip" + (c === curCat ? " on" : "");
+    b.textContent = c;
+    b.onclick = () => { curCat = c; shown = 40; renderCatChips(); renderTerms(); };
+    box.appendChild(b);
+  });
+}
+
+function scoreTerm(t, q, nq) {
+  // 정확히 일치 > 시작 > 포함 > 설명에 포함
+  const en = norm(t.en), ko = norm(t.ko);
+  if (en === nq || ko === nq) return 100;
+  if (en.startsWith(nq) || ko.startsWith(nq)) return 80;
+  if (en.includes(nq) || ko.includes(nq)) return 60;
+  if (norm(t.def).includes(nq)) return 30;
+  return 0;
+}
+
+function renderTerms() {
+  const raw = $("q").value.trim();
+  const nq = norm(raw);
+  let list = TERMS.filter(t => curCat === "전체" || t.cat === curCat);
+  if (nq) {
+    list = list.map(t => ({ t, s: scoreTerm(t, raw, nq) }))
+      .filter(x => x.s > 0).sort((a, b) => b.s - a.s).map(x => x.t);
+  } else {
+    list = list.slice().sort((a, b) => a.en.localeCompare(b.en));
+  }
+  $("count").textContent = (nq ? `"${raw}" 검색 결과 ` : "") + list.length + "개";
+
+  const box = $("list");
+  if (list.length === 0) {
+    box.innerHTML = `<div class="empty">찾는 용어가 없어요 😢<br><br>
+      영어 용어라면 <b>🔬 단어 분해기</b>에 넣어서 뜻을 추측해 보세요.</div>`;
+    $("moreBtn").style.display = "none";
+    return;
+  }
+  box.innerHTML = list.slice(0, shown).map(t => `
+    <div class="item">
+      <div class="item-top">
+        <div><span class="en">${hl(t.en, raw)}</span>&nbsp;&nbsp;<span class="ko">${hl(t.ko, raw)}</span></div>
+        <span class="cat">${t.cat}</span>
+      </div>
+      <div class="def">${hl(t.def, raw)}</div>
+      ${t.cat !== "약어" ? partsLine(t.en) : ""}
+    </div>`).join("");
+  $("moreBtn").style.display = list.length > shown ? "block" : "none";
+}
+
+function partsLine(en) {
+  const res = decompose(en).filter(p => p.part);
+  if (res.length < 2) return "";
+  return `<div class="parts-line">🧩 ${res.map(p => `<b>${esc(p.text)}</b>(${esc(p.part.mean.split(",")[0])})`).join(" + ")}</div>`;
+}
+
+$("q").addEventListener("input", () => { shown = 40; renderTerms(); });
+$("moreBtn").onclick = () => { shown += 40; renderTerms(); };
+
+// ================= 어근 목록 =================
+let curType = "전체";
+function renderPartChips() {
+  const box = $("partChips");
+  box.innerHTML = "";
+  ["전체", "접두사", "어근", "접미사"].forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip" + (c === curType ? " on" : "");
+    b.textContent = c;
+    b.onclick = () => { curType = c; renderPartChips(); renderParts(); };
+    box.appendChild(b);
+  });
+}
+function renderParts() {
+  const raw = $("pq").value.trim();
+  const nq = norm(raw);
+  const list = PARTS.filter(p =>
+    (curType === "전체" || p.type === curType) &&
+    (!nq || norm(p.form).includes(nq) || norm(p.mean).includes(nq) || norm(p.ex).includes(nq)));
+  $("pcount").textContent = list.length + "개";
+  $("plist").innerHTML = list.length ? list.map(p => `
+    <div class="item">
+      <div class="item-top">
+        <div><span class="en">${hl(p.form, raw)}</span>&nbsp;&nbsp;<span class="ko">${hl(p.mean, raw)}</span></div>
+        <span class="cat">${p.type}</span>
+      </div>
+      <div class="def">예) ${hl(p.ex, raw)}</div>
+    </div>`).join("") : `<div class="empty">찾는 어근이 없어요 😢</div>`;
+}
+$("pq").addEventListener("input", renderParts);
+
+// ================= 단어 분해기 =================
+function decompose(word) {
+  const w = word.toLowerCase().replace(/[^a-z]/g, "");
+  const out = [];
+  let i = 0, unknown = "";
+  while (i < w.length) {
+    // 후보 중에서 뒤에 이어지는 부분도 잘 풀리는 것을 우선 선택
+    const cands = PART_FORMS.filter(f => w.startsWith(f.text, i));
+    const startsKnown = pos => pos >= w.length || PART_FORMS.some(f => w.startsWith(f.text, pos)) ||
+      ((w[pos] === "o" || w[pos] === "i") && PART_FORMS.some(f => w.startsWith(f.text, pos + 1)));
+    let found = cands.find(f => startsKnown(i + f.text.length)) || null;
+    // 예: cardi + itis → card + itis (끝 모음이 겹치는 경우)
+    if (!found) {
+      const f = cands.find(f => /[aeio]$/.test(f.text) && startsKnown(i + f.text.length - 1));
+      if (f) found = { text: f.text.slice(0, -1), part: f.part };
+    }
+    if (!found) found = cands[0] || null;
+    if (found) {
+      if (unknown) { out.push({ text: unknown }); unknown = ""; }
+      out.push({ text: found.text, part: found.part });
+      i += found.text.length;
+    } else if ((w[i] === "o" || w[i] === "i") && out.length && out[out.length - 1].part && !unknown) {
+      out.push({ text: w[i], vowel: true });
+      i++;
+    } else {
+      unknown += w[i]; i++;
+    }
+  }
+  if (unknown) out.push({ text: unknown });
+  return out;
+}
+
+function renderDecomp() {
+  const raw = $("dq").value.trim();
+  const box = $("dresult");
+  if (!raw) { box.innerHTML = ""; return; }
+  const pieces = decompose(raw);
+  const known = pieces.filter(p => p.part);
+  const match = TERMS.find(t => norm(t.en) === norm(raw));
+  box.innerHTML = `
+    <div class="pieces">${pieces.map(p => p.part ? `
+      <div class="piece"><div class="p-form">${esc(p.text)}</div><div class="p-type">${p.part.type}</div><div class="p-mean">${esc(p.part.mean)}</div></div>`
+      : p.vowel ? `<div class="piece vowel"><div class="p-form">${p.text}</div><div class="p-type">연결모음</div></div>`
+      : `<div class="piece unknown"><div class="p-form">${esc(p.text)}</div><div class="p-type">모르는 부분</div></div>`).join("")}
+    </div>
+    ${known.length ? `<div class="item"><div class="def">👉 뜻 추측: <b>${known.map(p => esc(p.part.mean.split(",")[0])).join(" + ")}</b></div>
+      ${match ? `<div class="def">📖 사전 뜻: <b>${esc(match.ko)}</b> – ${esc(match.def)}</div>` : ""}</div>`
+      : `<div class="empty">알고 있는 어근을 찾지 못했어요</div>`}`;
+}
+$("dq").addEventListener("input", renderDecomp);
+
+["gastroenteritis", "hepatomegaly", "bradycardia", "osteomyelitis", "hematuria", "pericarditis", "arthroscopy"].forEach(ex => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = ex;
+  b.onclick = () => { $("dq").value = ex; renderDecomp(); };
+  $("examples").appendChild(b);
+});
+
+// ================= 탭 =================
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b === btn));
+    ["terms", "parts", "decomp"].forEach(id => {
+      $("tab-" + id).style.display = btn.dataset.tab === id ? "block" : "none";
+    });
+  };
+});
+
+// ================= 다크 모드 =================
+function applyTheme(d) { document.body.classList.toggle("dark", d); $("themeBtn").textContent = d ? "☀️" : "🌙"; }
+applyTheme(load("dark", false));
+$("themeBtn").onclick = () => { const d = !document.body.classList.contains("dark"); applyTheme(d); save("dark", d); };
+
+// ================= 시작 =================
+$("totalTerms").textContent = TERMS.length;
+$("totalParts").textContent = PARTS.length;
+renderCatChips(); renderTerms();
+renderPartChips(); renderParts();
+</script>
+</body>
+</html>
